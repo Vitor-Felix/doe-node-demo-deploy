@@ -4,6 +4,7 @@ const multer = require('multer');
 const { MongoClient, GridFSBucket, ObjectId } = require('mongodb');
 
 const Donation = require('./models/donation');
+const DonationController = require('./controllers/DonationController');
 const User = require('./models/user');
 
 // Create a MongoDB connection
@@ -19,6 +20,8 @@ router.get('/', (req, res) => {
   res.setHeader('Content-Type', 'text/plain');
   res.end('Welcome to DOE API');
 });
+
+// router.post('/donation', upload.single('photo'), DonationController.registryDonation);
 
 router.post('/donation', upload.single('photo'), async (req, res) => {
   const { title, address, phoneNumber, description } = req.body;
@@ -154,6 +157,31 @@ router.post('/login', async (req, res) => {
   } catch (error) {
     console.error('Error during login:', error);
     return res.status(500).json({ login: false, message: 'Failed to login' });
+  }
+});
+
+router.get('/donations', async (req, res) => {
+  const { page = 1 } = req.query; // Default page number is 1
+
+  try {
+    await client.connect(); // Connect to the MongoDB server
+    const database = client.db('doe-db-1');
+    const donationsCollection = database.collection('donations');
+
+    const pageSize = 20; // Number of posts per page
+    const skipCount = (page - 1) * pageSize; // Calculate the number of documents to skip
+
+    const posts = await donationsCollection
+      .find()
+      .sort({ _id: -1 }) // Sort by descending _id to get the latest posts first
+      .skip(skipCount)
+      .limit(pageSize)
+      .toArray();
+
+    res.json(posts);
+  } catch (error) {
+    console.error('Error retrieving posts:', error);
+    res.status(500).json({ message: 'Failed to retrieve posts' });
   }
 });
 
