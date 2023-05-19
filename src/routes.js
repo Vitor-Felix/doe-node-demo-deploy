@@ -24,7 +24,7 @@ router.get('/', (req, res) => {
 // router.post('/donation', upload.single('photo'), DonationController.registryDonation);
 
 router.post('/donation', upload.single('photo'), async (req, res) => {
-  const { title, address, phoneNumber, description } = req.body;
+  const { title, address, phonenumber, description, userId } = req.body;
   const file = req.file;
 
   try {
@@ -44,12 +44,20 @@ router.post('/donation', upload.single('photo'), async (req, res) => {
 
     // Handle the completion of the upload stream
     uploadStream.on('finish', async () => {
+      const user = await User.findOne({ userId });
+      console.log(user)
+
+      if (!user) {
+        return res.status(404).send('User not found');
+      }
+
       const newDonation = new Donation({
         title,
         address,
-        phoneNumber,
+        phonenumber,
         description,
-        photo: new ObjectId(uploadStream.id), // Save the GridFS file ID in the donation object
+        photo: new ObjectId(uploadStream.id),
+        user: user._id 
       });
 
       await newDonation.save();
@@ -168,22 +176,56 @@ router.get('/donations', async (req, res) => {
     const database = client.db('doe-db-1');
     const donationsCollection = database.collection('donations');
 
-    const pageSize = 20; // Number of posts per page
+    const pageSize = 20; // Number of donations per page
     const skipCount = (page - 1) * pageSize; // Calculate the number of documents to skip
 
-    const posts = await donationsCollection
+    const donations = await donationsCollection
       .find()
-      .sort({ _id: -1 }) // Sort by descending _id to get the latest posts first
+      .sort({ _id: -1 }) // Sort by descending _id to get the latest donations first
       .skip(skipCount)
       .limit(pageSize)
       .toArray();
 
-    res.json(posts);
+    // Fetch the photo and user objects for each donation
+    const populatedDonations = await Promise.all(
+      donations.map(async (donation) => {
+        // const photo = await database.collection('fs.files').findOne({ _id: donation.photo });
+        const user = await database.collection('users').findOne({ _id: donation.user });
+
+        return {
+          ...donation,
+          // photo, // Better to make a route only for getting the images
+          user,
+        };
+      })
+    );
+
+    res.json(populatedDonations);
   } catch (error) {
-    console.error('Error retrieving posts:', error);
-    res.status(500).json({ message: 'Failed to retrieve posts' });
+    console.error('Error retrieving donations:', error);
+    res.status(500).json({ message: 'Failed to retrieve donations' });
   }
 });
 
+router.get('/photos/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await client.connect(); // Connect to the MongoDB server
+    const database = client.db('doe-db-1');
+    const bucket = new GridFSBucket(database, { bucketName: 'fs' });
+
+    const downloadStream = bucket.openDownloadStream(new ObjectId(id));
+
+    // Set the appropriate content type header for the response
+    res.set('Content-Type', 'image/jpeg');
+
+    // Pipe the image data to the response object
+    downloadStream.pipe(res);
+  } catch (error) {
+    console.error('Error retrieving photo:', error);
+    res.status(500).send('Failed to retrieve photo.');
+  }
+});
 
 module.exports = router;
