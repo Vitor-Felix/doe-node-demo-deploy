@@ -76,8 +76,18 @@ router.post('/register', upload.fields([
   { name: 'documentPhoto', maxCount: 1 }
 ]), async (req, res) => {
   const { fullName, email, password, phoneNumber } = req.body;
-  const facePhotoFile = req.files['facePhoto'][0];
-  const documentPhotoFile = req.files['documentPhoto'][0];
+  // const facePhotoFile = req.files['facePhoto'][0];
+  // const documentPhotoFile = req.files['documentPhoto'][0];
+
+  let facePhotoFile, documentPhotoFile;
+
+  if (req.files && req.files['facePhoto']) {
+    facePhotoFile = req.files['facePhoto'][0];
+  }
+
+  if (req.files && req.files['documentPhoto']) {
+    documentPhotoFile = req.files['documentPhoto'][0];
+  }
 
   try {
     await client.connect(); // Connect to the MongoDB server
@@ -85,40 +95,56 @@ router.post('/register', upload.fields([
     const bucket = new GridFSBucket(database);
 
     // Create readable streams from the uploaded files
-    const facePhotoStream = facePhotoFile.buffer;
-    const documentPhotoStream = documentPhotoFile.buffer;
+    // const facePhotoStream = facePhotoFile.buffer;
+    // const documentPhotoStream = documentPhotoFile.buffer;
+    const facePhotoStream = facePhotoFile ? facePhotoFile.buffer : null;
+    const documentPhotoStream = documentPhotoFile ? documentPhotoFile.buffer : null;
 
     // Create writable streams for storing the image data in GridFS
-    const facePhotoUploadStream = bucket.openUploadStream(facePhotoFile.originalname);
-    const documentPhotoUploadStream = bucket.openUploadStream(documentPhotoFile.originalname);
+    const facePhotoUploadStream = facePhotoStream ? bucket.openUploadStream(facePhotoFile.originalname) : null;
+    const documentPhotoUploadStream = documentPhotoStream ? bucket.openUploadStream(documentPhotoFile.originalname) : null;
 
-    // Pipe the readable streams into the writable streams to save the image data
-    facePhotoUploadStream.write(facePhotoStream);
-    documentPhotoUploadStream.write(documentPhotoStream);
-    facePhotoUploadStream.end();
-    documentPhotoUploadStream.end();
+    if ( facePhotoUploadStream !== null ) {
+      facePhotoUploadStream.write(facePhotoStream);
+      facePhotoUploadStream.end();
 
-    // Handle the completion of the upload streams
-    const uploadPromises = [
-      new Promise((resolve, reject) => {
+      await new Promise((resolve, reject) => {
         facePhotoUploadStream.on('finish', resolve);
         facePhotoUploadStream.on('error', reject);
-      }),
-      new Promise((resolve, reject) => {
+      })
+    }
+
+    if ( documentPhotoUploadStream !== null ) {
+      documentPhotoUploadStream.write(documentPhotoStream);
+      documentPhotoUploadStream.end();
+
+      await new Promise((resolve, reject) => {
         documentPhotoUploadStream.on('finish', resolve);
         documentPhotoUploadStream.on('error', reject);
       })
-    ];
+    }
 
-    await Promise.all(uploadPromises);
+    // Saving this code to see if can be reused later. I liked it
+    // const uploadPromises = [
+    //   new Promise((resolve, reject) => {
+    //     facePhotoUploadStream.on('finish', resolve);
+    //     facePhotoUploadStream.on('error', reject);
+    //   }),
+    //   new Promise((resolve, reject) => {
+    //     documentPhotoUploadStream.on('finish', resolve);
+    //     documentPhotoUploadStream.on('error', reject);
+    //   })
+    // ];
+
+    // await Promise.all(uploadPromises);
 
     const newUser = new User({
       fullName,
       email,
       password,
       phoneNumber,
-      facePhoto: new ObjectId(facePhotoUploadStream.id),
-      documentPhoto: new ObjectId(documentPhotoUploadStream.id),
+      facePhoto: facePhotoUploadStream ? new ObjectId(facePhotoUploadStream.id) : null,
+      documentPhoto: documentPhotoUploadStream ? new ObjectId(documentPhotoUploadStream.id) : null,
       isVerified: false
     });
 
