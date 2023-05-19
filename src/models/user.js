@@ -20,12 +20,12 @@ const userSchema = new mongoose.Schema({
   },
   facePhoto: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true,
+    // required: true,
     ref: 'File'
   },
   documentPhoto: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true,
+    // required: true,
     ref: 'File'
   },
   isVerified: {
