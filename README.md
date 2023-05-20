@@ -30,3 +30,52 @@ dev@dev:~$ yarn start
 ```console
 dev@dev:~$ yarn dev
 ```
+
+## Rotas da API - MVP
+- POST `/donation`
+  - Cadastra nova doação
+  - Exemplo de corpo (form-data):
+```python
+title: Nintendo 64
+address: Rua dos alfeneiros
+phonenumber: 486486486486
+photo: /home/dev/Downloads/photo.jpeg
+description: this is a description
+userid: johndoer@example.com
+```
+
+- POST `/register`
+  - Cadastra novo usuário
+  - Exemplo de corpo (form-data):
+```python
+fullName: John Doe
+email: johndoer6@example.com
+password: password123
+phoneNumber: +1 123-456-7890
+facePhoto: /home/dev/Downloads/face.jpeg
+documentPhoto: /home/dev/Downloads/id.jpeg
+```
+
+- POST `/login`
+  - Verifica se credenciais são válidas para realizar login
+  - Exemplo de corpo (JSON):
+```JSON
+{
+  "nickname": "johndoer@example.com",
+  "password": "password123"
+}
+```
+
+- GET `/donations`
+  - Lista últimas 20 doações, por default
+  - Permite passar valor de paginação por Query Param `page`
+    - Ex.:  `/donations?page=2`
+
+- GET `/photos/{:id}`
+  - Recupera imagem por sua `id` no MongoDB
+  - Permite passar valor de paginação por Query Param `page`
+    - Ex.:  `/photos/646226b9ebca2394b6850d75`
+
+- GET `/`
+  - Retorna mensagem de boas vindas: `Welcome to DOE API`
+   
